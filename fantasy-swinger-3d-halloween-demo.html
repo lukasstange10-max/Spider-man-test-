@@ -4143,8 +4143,26 @@
       }
       updateGhostFromRoomData(key, p);
       if (handOffSpectate && friendGhosts[key]) startSpectating(key);
+      // If we're currently spectating THIS player via their room entry
+      // (not the standalone Friends-list path, which already has its own
+      // "friend stopped playing" detection above) and their data now shows
+      // them as no longer actually playing, end the session gracefully
+      // instead of leaving the viewer frozen on a stale last position.
+      if (spectatingKey === key && !(p.world > 0 && p.updatedAt && (Date.now() - p.updatedAt < 5000))){
+        stopSpectating(true);
+      }
     });
-    Object.keys(friendGhosts).forEach(key => { if (!seenKeys.has(key)) removeGhost(key); });
+    Object.keys(friendGhosts).forEach(key => {
+      if (!seenKeys.has(key)) {
+        // Same reasoning as the staleness check above, for the case where
+        // the player disappears from the room's data entirely (left the
+        // room, not just stopped playing) rather than just going stale —
+        // stop spectating BEFORE the ghost gets deleted out from under it,
+        // since the spectate camera reads this ghost's position every frame.
+        if (spectatingKey === key) stopSpectating(true);
+        removeGhost(key);
+      }
+    });
   }
   function joinRoom(code){
     leaveRoom(); // clean up any previous room membership first
@@ -13100,6 +13118,18 @@
     // and whoever's watching never finds out this player actually left —
     // their view just silently freezes instead of ending gracefully.
     if (friendBroadcastRef) friendBroadcastRef.remove().catch(() => {});
+    if (myRoomPlayerRef){
+      // Same reasoning as friendBroadcastRef above, for the co-op room
+      // path: mark this player as "not currently playing" rather than just
+      // letting updateRoomSync's writes silently stop. Without this, a
+      // friend spectating you via the room (not the standalone Friends-list
+      // path) never finds out you left — their view just freezes on your
+      // last position instead of ending gracefully. Keeps the room entry
+      // itself (world: 0 is the same "joined but not playing yet" state
+      // joinRoom() sets initially) rather than removing it outright, so
+      // coming back to the room later doesn't require rejoining by code.
+      myRoomPlayerRef.update({ world: 0, updatedAt: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+    }
     muteRainAudio();
     player.lives = 3;
     updateLivesDisplay();
