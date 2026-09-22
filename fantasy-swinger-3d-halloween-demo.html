@@ -5841,7 +5841,11 @@
     }
   });
   function setKeyboardKeysVisible(visible){
-    allKeyCaps.forEach(k => { k.mesh.visible = (visible || k.golden || k.rainbow || k.pumpkin || k.ghost) && k.world === selectedWorld; });
+    // Used to keep special event keycaps (golden/rainbow/pumpkin/ghost)
+    // visible even with the decoration turned off, so the reward events
+    // stayed playable for everyone. Per feedback, "without keys" should
+    // mean none at all, no exceptions — so it's a plain pass-through now.
+    allKeyCaps.forEach(k => { k.mesh.visible = visible && k.world === selectedWorld; });
   }
 
   // ---------- GOLDEN KEYCAPS EVENT ----------
@@ -5875,7 +5879,7 @@
       }
       k.goldBeam.visible = true;
       k.goldPulseT = Math.random() * Math.PI * 2; // random phase so they don't all pulse in perfect unison
-      k.mesh.visible = k.world === selectedWorld; // visible regardless of the keyboardKeysWanted setting — a global reward event should be playable by everyone, not just people who happen to have the keycap decoration turned on
+      k.mesh.visible = keyboardKeysWanted && k.world === selectedWorld; // used to ignore the keyboardKeysWanted setting so the reward event stayed playable for everyone; per feedback, "without keys" should mean none at all, no exceptions
       if (!activeGoldenKeycaps.includes(k)) activeGoldenKeycaps.push(k);
     } else {
       k.mesh.material.color.setHex(k.originalColor);
@@ -5959,7 +5963,7 @@
         k.mesh.add(k.rainbowBeam);
       }
       k.rainbowBeam.visible = true;
-      k.mesh.visible = k.world === selectedWorld; // visible regardless of the keyboardKeysWanted setting, same reasoning as golden keycaps
+      k.mesh.visible = keyboardKeysWanted && k.world === selectedWorld; // same fix as golden keycaps above — "without keys" now really means none at all
       if (!activeRainbowKeycaps.includes(k)) activeRainbowKeycaps.push(k);
     } else {
       k.mesh.material.color.setHex(k.originalColor);
@@ -6032,8 +6036,7 @@
       }
       k.pumpkinBeam.visible = true;
       k.pumpkinPulseT = Math.random() * Math.PI * 2;
-      k.mesh.visible = k.world === selectedWorld;
-      if (!activePumpkinKeycaps.includes(k)) activePumpkinKeycaps.push(k);
+      k.mesh.visible = keyboardKeysWanted && k.world === selectedWorld; // same fix as golden keycaps — "without keys" now hides pumpkin ones too, no exceptions
     } else {
       k.mesh.material.color.setHex(k.originalColor);
       const isWaterWorld = k.world === 4;
@@ -6109,8 +6112,7 @@
       }
       k.ghostBeam.visible = true;
       k.ghostFlickerT = Math.random() * 20; // random phase so multiple ghosts (across worlds) don't flicker in sync
-      k.mesh.visible = k.world === selectedWorld;
-      if (!activeGhostKeycaps.includes(k)) activeGhostKeycaps.push(k);
+      k.mesh.visible = keyboardKeysWanted && k.world === selectedWorld; // same fix as golden keycaps — "without keys" now hides ghost ones too, no exceptions
     } else {
       k.mesh.material.color.setHex(k.originalColor);
       const isWaterWorld = k.world === 4;
@@ -6948,7 +6950,7 @@
       selectedWorld = preBossWorld;
       applyWorldTheme(selectedWorld);
     }
-    allKeyCaps.forEach(k => { k.mesh.visible = (keyboardKeysWanted || k.golden || k.rainbow || k.pumpkin || k.ghost) && k.world === selectedWorld; }); // restore keycap visibility for whichever world we're back in — applyWorldTheme above only runs (and would otherwise handle this) if the world actually differed; special event keys stay visible regardless of the setting
+    allKeyCaps.forEach(k => { k.mesh.visible = keyboardKeysWanted && k.world === selectedWorld; }); // restore keycap visibility for whichever world we're back in — applyWorldTheme above only runs (and would otherwise handle this) if the world actually differed. Special event keys used to stay visible regardless of the setting; per feedback, "without keys" now means without ANY keys, no exceptions.
     if (goldenKeycapExpiresAt) updateGoldenKeycapsBadgeText(); // in case the world differs from before entering the boss arena
     if (rainbowKeycapExpiresAt) updateRainbowKeycapsBadgeText();
     if (pumpkinKeycapExpiresAt) updatePumpkinKeycapsBadgeText();
@@ -7683,7 +7685,7 @@
     });
     checkpoints.forEach(cp => { cp.group.visible = (cp.world === n); });
     anchors.forEach(a => { if (a.world !== 'boss') a.visible = (a.world === n); }); // boss-arena anchors are managed entirely by enterBossArena/endBossEventLocally instead, since they're not part of the normal world 1/2/3 rotation
-    allKeyCaps.forEach(k => { k.mesh.visible = (keyboardKeysWanted || k.golden || k.rainbow || k.pumpkin || k.ghost) && k.world === n; }); // keys were floating "somewhere on the map" before this — they're built once at load and never moved, so without this they stayed visible regardless of which world's platforms were actually showing; special event keys stay visible regardless of the keycap decoration setting
+    allKeyCaps.forEach(k => { k.mesh.visible = keyboardKeysWanted && k.world === n; }); // keys were floating "somewhere on the map" before this — they're built once at load and never moved, so without this they stayed visible regardless of which world's platforms were actually showing. Special event keys used to stay visible regardless of the decoration setting; "without keys" now really means none at all.
     if (goldenKeycapExpiresAt) updateGoldenKeycapsBadgeText(); // the count shown is "in your world", so it has to be recalculated whenever the world itself changes
     if (rainbowKeycapExpiresAt) updateRainbowKeycapsBadgeText();
     if (pumpkinKeycapExpiresAt) updatePumpkinKeycapsBadgeText();
@@ -11901,7 +11903,7 @@
     // several things (the keycap-decoration setting, current world, and
     // golden/rainbow status) — not always simply "on".
     if (visible){
-      allKeyCaps.forEach(k => { k.mesh.visible = (keyboardKeysWanted || k.golden || k.rainbow || k.pumpkin || k.ghost) && k.world === selectedWorld; });
+      allKeyCaps.forEach(k => { k.mesh.visible = keyboardKeysWanted && k.world === selectedWorld; }); // "without keys" now hides every keycap type, including the special event ones — no more exceptions
     } else {
       allKeyCaps.forEach(k => { k.mesh.visible = false; });
     }
