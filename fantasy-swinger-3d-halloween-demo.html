@@ -8382,6 +8382,17 @@
           gh.legPivots[0].rotation.x *= 0.8; gh.legPivots[1].rotation.x *= 0.8;
           gh.armPivots[0].rotation.x *= 0.8; gh.armPivots[1].rotation.x *= 0.8;
         }
+        // Same reasoning as stopEmote() for the local player: walking/idle
+        // above only ever touches rotation.x on arms and legs, so any pose
+        // that used other axes (boo's arm-spread-on-Z and torso lean,
+        // flexen's arm spread, etc.) would otherwise stay stuck on a
+        // friend's ghost forever once their emote ends. Eased back rather
+        // than snapped so it doesn't visibly pop on other players' screens.
+        gh.armPivots[0].rotation.z += (-0.24 - gh.armPivots[0].rotation.z) * 0.15;
+        gh.armPivots[1].rotation.z += (0.24 - gh.armPivots[1].rotation.z) * 0.15;
+        gh.torsoGroup.rotation.x *= 0.8; gh.torsoGroup.rotation.z *= 0.8;
+        gh.torsoGroup.position.y += (0.85 - gh.torsoGroup.position.y) * 0.15;
+        if (gh.body) gh.body.rotation.z *= 0.8;
       }
 
       if (gh.grappling && gh.anchorPos){
@@ -10688,6 +10699,11 @@
     // through, only the notification about it goes away.
     document.getElementById('specialRingBadge').classList.remove('show');
   });
+  document.getElementById('broomPickupBadgeCloseBtn').addEventListener('click', () => {
+    // Same idea again — closes just the notification. The broom pickup
+    // itself stays out there in the world either way.
+    document.getElementById('broomPickupBadge').classList.remove('show');
+  });
   document.getElementById('goldenKeycapsBadgeCloseBtn').addEventListener('click', () => {
     // Same idea — the golden keycaps themselves stay out there to be found and collected, only the notification about them goes away.
     document.getElementById('goldenKeycapsBadge').classList.remove('show');
@@ -11646,6 +11662,16 @@
   function stopEmote(){
     emoteActive = false;
     emoteId = null;
+    // Snaps every axis a pose might have touched back to neutral — not just
+    // arm/leg rotation.x, which is all the normal walking/idle pose logic
+    // resets on its own each frame. Poses like 'boo' (arm spread on the Z
+    // axis, a torso lean) or 'flexen' (arm spread) touch axes nothing else
+    // ever revisits, so without this they'd stay stuck in that position
+    // forever once the emote ends instead of returning to a normal stance.
+    armPivots[0].rotation.z = -0.24; armPivots[1].rotation.z = 0.24;
+    torsoGroup.rotation.x = 0; torsoGroup.rotation.z = 0;
+    torsoGroup.position.y = 0.85;
+    body.rotation.z = 0;
   }
   // Parameterized version — takes the pivots to pose instead of always using
   // the local player's, so the exact same dance/wave/etc. poses can be
