@@ -8102,39 +8102,45 @@
   // visibly out behind the character, a dark binding band where they meet
   // the handle, and a front tip poking out ahead for the classic silhouette.
   // Hidden by default; toggled visible only for the duration of an active
-  // broom power-up.
-  const broomRideMesh = new THREE.Group();
-  const broomRideHandleMat = new THREE.MeshStandardMaterial({ color: 0x7a5230, roughness: 0.75 });
-  const broomRideHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.095, 3.0, 8), broomRideHandleMat);
-  broomRideHandle.rotation.x = Math.PI / 2; // lays the handle flat along Z (front-to-back) instead of the default standing-up-along-Y
-  broomRideHandle.position.z = -0.5; // shifts it so more length trails behind than pokes out in front — front tip lands just past the chest, most of the length (and all the straw) is well behind the body
-  broomRideMesh.add(broomRideHandle);
-  // Dark wrapped band marking where the bristles are bound to the handle —
-  // small detail, but it's the difference between "stick with cones near
-  // the end" and "recognizably a broom".
-  const broomBandMat = new THREE.MeshStandardMaterial({ color: 0x2a1f14, roughness: 0.7 });
-  const broomBand = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.22, 8), broomBandMat);
-  broomBand.rotation.x = Math.PI / 2;
-  broomBand.position.z = -1.85;
-  broomRideMesh.add(broomBand);
-  const broomRideStrawMat = new THREE.MeshStandardMaterial({ color: 0xd9a63a, roughness: 0.9 });
-  const broomRideStrawMat2 = new THREE.MeshStandardMaterial({ color: 0xc08a2a, roughness: 0.9 }); // a second, slightly darker straw tone mixed in so the bundle doesn't read as one flat color block
-  for (let s = 0; s < 11; s++){
-    const mat = s % 3 === 0 ? broomRideStrawMat2 : broomRideStrawMat;
-    const straw = new THREE.Mesh(new THREE.ConeGeometry(0.075, 1.25, 6), mat);
-    // Fanned out in a rough circle around the handle's axis, each at a
-    // slightly different length/angle so the bundle reads as loose bristles
-    // rather than a perfect, uniform pinwheel.
-    const angle = (s / 11) * Math.PI * 2;
-    const flare = 0.32 + (s % 3) * 0.05;
-    straw.position.set(Math.cos(angle) * flare * 0.4, Math.sin(angle) * flare * 0.4, -2.15);
-    straw.rotation.x = -Math.PI / 2; // points the cone tip further backward, away from the character, matching the handle's own orientation
-    straw.rotation.z = angle;
-    straw.rotation.y = flare * 0.5; // tilts each cone slightly outward from center instead of every one running perfectly parallel
-    broomRideMesh.add(straw);
+  // broom power-up. Factored into its own function so a friend's ghost
+  // avatar can get the exact same broom attached to it in co-op, instead of
+  // only the local player ever visibly having one.
+  function buildBroomRideMesh(){
+    const group = new THREE.Group();
+    const handleMat = new THREE.MeshStandardMaterial({ color: 0x7a5230, roughness: 0.75 });
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.095, 3.0, 8), handleMat);
+    handle.rotation.x = Math.PI / 2; // lays the handle flat along Z (front-to-back) instead of the default standing-up-along-Y
+    handle.position.z = -0.5; // shifts it so more length trails behind than pokes out in front — front tip lands just past the chest, most of the length (and all the straw) is well behind the body
+    group.add(handle);
+    // Dark wrapped band marking where the bristles are bound to the handle —
+    // small detail, but it's the difference between "stick with cones near
+    // the end" and "recognizably a broom".
+    const bandMat = new THREE.MeshStandardMaterial({ color: 0x2a1f14, roughness: 0.7 });
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.22, 8), bandMat);
+    band.rotation.x = Math.PI / 2;
+    band.position.z = -1.85;
+    group.add(band);
+    const strawMat = new THREE.MeshStandardMaterial({ color: 0xd9a63a, roughness: 0.9 });
+    const strawMat2 = new THREE.MeshStandardMaterial({ color: 0xc08a2a, roughness: 0.9 }); // a second, slightly darker straw tone mixed in so the bundle doesn't read as one flat color block
+    for (let s = 0; s < 11; s++){
+      const mat = s % 3 === 0 ? strawMat2 : strawMat;
+      const straw = new THREE.Mesh(new THREE.ConeGeometry(0.075, 1.25, 6), mat);
+      // Fanned out in a rough circle around the handle's axis, each at a
+      // slightly different length/angle so the bundle reads as loose bristles
+      // rather than a perfect, uniform pinwheel.
+      const angle = (s / 11) * Math.PI * 2;
+      const flare = 0.32 + (s % 3) * 0.05;
+      straw.position.set(Math.cos(angle) * flare * 0.4, Math.sin(angle) * flare * 0.4, -2.15);
+      straw.rotation.x = -Math.PI / 2; // points the cone tip further backward, away from the character, matching the handle's own orientation
+      straw.rotation.z = angle;
+      straw.rotation.y = flare * 0.5; // tilts each cone slightly outward from center instead of every one running perfectly parallel
+      group.add(straw);
+    }
+    group.position.set(0, -0.62, 0); // upper-thigh height, between the two legs — not chest height, which is what made it look like it was stabbed through the torso
+    group.visible = false;
+    return group;
   }
-  broomRideMesh.position.set(0, -0.62, 0); // upper-thigh height, between the two legs — not chest height, which is what made it look like it was stabbed through the torso
-  broomRideMesh.visible = false;
+  const broomRideMesh = buildBroomRideMesh();
   playerMesh.add(broomRideMesh);
   const backMat = _localChar.materials.backMat;
   const frontMat = _localChar.materials.frontMat;
@@ -8296,7 +8302,9 @@
     const ghostRope = new THREE.Line(ghostRopeGeo, ghostRopeMat);
     ghostRope.visible = false;
     scene.add(ghostRope);
-    return { mesh: g, legPivots: built.legPivots, armPivots: built.armPivots, armHands: built.armHands, torsoGroup: built.torsoGroup, body: built.body, rope: ghostRope };
+    const ghostBroom = buildBroomRideMesh();
+    g.add(ghostBroom);
+    return { mesh: g, legPivots: built.legPivots, armPivots: built.armPivots, armHands: built.armHands, torsoGroup: built.torsoGroup, body: built.body, rope: ghostRope, broomRideMesh: ghostBroom };
   }
   function updateGhostFromRoomData(key, p){
     if (!friendGhosts[key]){
@@ -8329,6 +8337,7 @@
       gh.emoteElapsed = 0; // fresh emote (or none) started — restart its timer
     }
     gh.emote = p.emote || null;
+    if (gh.broomRideMesh) gh.broomRideMesh.visible = !!p.broom; // lets friends actually see the broom itself, not just infer flight from movement
     gh.deadEnemyIndices = Array.isArray(p.deadEnemyIndices) ? p.deadEnemyIndices : null;
     gh.trophies = typeof p.trophies === 'number' ? p.trophies : gh.trophies;
     gh.lastSeenMs = Date.now();
@@ -8663,6 +8672,7 @@
       data.grappling = false;
     }
     data.emote = emoteActive ? emoteId : null;
+    data.broom = broomActive; // so friends can see the broom itself on your avatar, not just infer it from the flight-y movement
     // Which small enemies THIS player has already defeated, by their fixed
     // array index (stable across every client, since smallEnemies is built
     // in the same hardcoded order for everyone) — only actually READ while
@@ -8760,6 +8770,7 @@
       data.grappling = false;
     }
     data.emote = emoteActive ? emoteId : null;
+    data.broom = broomActive; // so friends can see the broom itself on your avatar, not just infer it from the flight-y movement
     // Which small enemies THIS player has already defeated, by their fixed
     // array index (stable across every client, since smallEnemies is built
     // in the same hardcoded order for everyone) — lets a spectator's view
