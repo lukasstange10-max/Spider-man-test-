@@ -5872,7 +5872,12 @@
     el.style.display = (halloweenEventActive && !alreadySeen) ? '' : 'none';
   }
   const KEY_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-  const KEY_COLORS = [0xff8c1a, 0xffa733, 0xffc247, 0xffd966, 0xff7300, 0xe8600a, 0xffb84d, 0xd9880a]; // 🎃 Halloween palette v2 — pure warm orange/amber/yellow range only, no purple/black/green this time
+  // 🎃 Halloween gets its own warm orange/amber/yellow-only palette instead
+  // of the normal full rainbow — but only while the event is actually
+  // active; this used to apply unconditionally regardless of the toggle.
+  const KEY_COLORS = halloweenEventActive
+    ? [0xff8c1a, 0xffa733, 0xffc247, 0xffd966, 0xff7300, 0xe8600a, 0xffb84d, 0xd9880a]
+    : [0xff6b6b, 0xffa94d, 0xffd43b, 0x69db7c, 0x38d9a9, 0x4dabf7, 0x748ffc, 0xda77f2, 0xf783ac, 0xff8787];
   const WATER_KEY_COLORS = [0x6fd6e8, 0x4bb8d9, 0x7ee8c9, 0x5fc9e8, 0x8fe3d0, 0x3fa8c9, 0x6de0e0, 0x52c4b0]; // World 4 only — a much narrower blue-teal-seafoam range instead of the full rainbow, so the keys read as "underwater glass" rather than a normal colorful keyboard
   const keyLetterTextureCache = {};
   function getKeyLetterTexture(letter){
@@ -6515,62 +6520,106 @@
   const ENEMY_MAX_HP = 3;
   function makeSmallEnemy(x, y, z){
     const g = new THREE.Group();
-    // 🎃 "evil pumpkin" reskin, v2 — instead of one sphere with straight
-    // boxes stuck on as "ridges" (which just looked like toothpicks poking
-    // out, since a flat box can't follow a curved surface), this builds the
-    // whole body out of 8 overlapping thin lobes arranged in a ring — the
-    // classic low-poly way to fake a pumpkin's ridged silhouette. The gaps
-    // where neighboring lobes overlap read naturally as grooves, with no
-    // separate ridge pieces needed at all.
-    const pumpkinOrange = 0xff7a1a;
-    const bodyMat = new THREE.MeshStandardMaterial({ color: pumpkinOrange, emissive: 0xff9d1a, emissiveIntensity: 0.25, roughness: 0.55 });
-    const grooveMat = new THREE.MeshStandardMaterial({ color: 0x8a3a08, roughness: 0.7 }); // dark recessed groove between lobes — the overlapping-lobes shape alone wasn't reading clearly as "pumpkin" from normal viewing distance, just as "smooth ball", so these add real visible definition
-    const lobeGeo = new THREE.SphereGeometry(0.26, 8, 8);
-    const grooveGeo = new THREE.SphereGeometry(0.24, 6, 8);
-    const lobeCount = 8;
-    for (let i = 0; i < lobeCount; i++){
-      const a = (i / lobeCount) * Math.PI * 2;
-      const lobe = new THREE.Mesh(lobeGeo, bodyMat);
-      lobe.scale.set(0.6, 0.82, 1.0); // thin and slightly tall — one "wedge" of the pumpkin
-      lobe.position.set(Math.cos(a) * 0.15, 0, Math.sin(a) * 0.15);
-      lobe.rotation.y = -a;
-      lobe.castShadow = true;
-      g.add(lobe);
-      // A thin, recessed dark sliver sitting right in the valley between
-      // this lobe and the next — same shape/placement idea as the lobes
-      // themselves, just thinner and set slightly back, so it reads as a
-      // groove rather than another lobe.
-      const ga = a + (Math.PI / lobeCount);
-      const groove = new THREE.Mesh(grooveGeo, grooveMat);
-      groove.scale.set(0.16, 0.84, 1.0);
-      groove.position.set(Math.cos(ga) * 0.12, 0, Math.sin(ga) * 0.12);
-      groove.rotation.y = -ga;
-      g.add(groove);
-    }
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.2, 6), new THREE.MeshStandardMaterial({ color: 0x4a7a2a, roughness: 0.8 }));
-    stem.position.y = 0.4;
-    stem.rotation.z = 0.25;
-    g.add(stem);
-    const glowMat = new THREE.MeshBasicMaterial({ color: 0x1a0800 }); // dark carved-out look instead of pale yellow — same fix as the boss: pale yellow blended straight into this body's own bright glow instead of reading as a face
-    [-1, 1].forEach(side => {
-      const eye = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.13, 3), glowMat);
-      eye.position.set(side * 0.17, 0.07, 0.36);
-      eye.rotation.x = Math.PI; // point-down triangle, classic jack-o'-lantern eye shape
-      eye.rotation.z = side * 0.15;
-      g.add(eye);
-    });
-    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.075, 0.08), glowMat);
-    mouth.position.set(0, -0.12, 0.38);
-    g.add(mouth);
-    // tiny legs for a scuttling look
-    const legMat = new THREE.MeshStandardMaterial({ color: 0xcc5c10, roughness: 0.6 });
-    for (let i = 0; i < 4; i++){
-      const a = (i / 4) * Math.PI * 2 + Math.PI/4;
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.22, 5), legMat);
-      leg.position.set(Math.cos(a) * 0.32, -0.28, Math.sin(a) * 0.32);
-      leg.rotation.z = Math.cos(a) * 0.5;
-      leg.rotation.x = Math.sin(a) * 0.5;
-      g.add(leg);
+    let bodyMat;
+    if (halloweenEventActive){
+      // 🎃 "evil pumpkin" reskin, v2 — instead of one sphere with straight
+      // boxes stuck on as "ridges" (which just looked like toothpicks poking
+      // out, since a flat box can't follow a curved surface), this builds the
+      // whole body out of 8 overlapping thin lobes arranged in a ring — the
+      // classic low-poly way to fake a pumpkin's ridged silhouette. The gaps
+      // where neighboring lobes overlap read naturally as grooves, with no
+      // separate ridge pieces needed at all.
+      const pumpkinOrange = 0xff7a1a;
+      bodyMat = new THREE.MeshStandardMaterial({ color: pumpkinOrange, emissive: 0xff9d1a, emissiveIntensity: 0.25, roughness: 0.55 });
+      const grooveMat = new THREE.MeshStandardMaterial({ color: 0x8a3a08, roughness: 0.7 }); // dark recessed groove between lobes — the overlapping-lobes shape alone wasn't reading clearly as "pumpkin" from normal viewing distance, just as "smooth ball", so these add real visible definition
+      const lobeGeo = new THREE.SphereGeometry(0.26, 8, 8);
+      const grooveGeo = new THREE.SphereGeometry(0.24, 6, 8);
+      const lobeCount = 8;
+      for (let i = 0; i < lobeCount; i++){
+        const a = (i / lobeCount) * Math.PI * 2;
+        const lobe = new THREE.Mesh(lobeGeo, bodyMat);
+        lobe.scale.set(0.6, 0.82, 1.0); // thin and slightly tall — one "wedge" of the pumpkin
+        lobe.position.set(Math.cos(a) * 0.15, 0, Math.sin(a) * 0.15);
+        lobe.rotation.y = -a;
+        lobe.castShadow = true;
+        g.add(lobe);
+        // A thin, recessed dark sliver sitting right in the valley between
+        // this lobe and the next — same shape/placement idea as the lobes
+        // themselves, just thinner and set slightly back, so it reads as a
+        // groove rather than another lobe.
+        const ga = a + (Math.PI / lobeCount);
+        const groove = new THREE.Mesh(grooveGeo, grooveMat);
+        groove.scale.set(0.16, 0.84, 1.0);
+        groove.position.set(Math.cos(ga) * 0.12, 0, Math.sin(ga) * 0.12);
+        groove.rotation.y = -ga;
+        g.add(groove);
+      }
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.2, 6), new THREE.MeshStandardMaterial({ color: 0x4a7a2a, roughness: 0.8 }));
+      stem.position.y = 0.4;
+      stem.rotation.z = 0.25;
+      g.add(stem);
+      const glowMat = new THREE.MeshBasicMaterial({ color: 0x1a0800 }); // dark carved-out look instead of pale yellow — same fix as the boss: pale yellow blended straight into this body's own bright glow instead of reading as a face
+      [-1, 1].forEach(side => {
+        const eye = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.13, 3), glowMat);
+        eye.position.set(side * 0.17, 0.07, 0.36);
+        eye.rotation.x = Math.PI; // point-down triangle, classic jack-o'-lantern eye shape
+        eye.rotation.z = side * 0.15;
+        g.add(eye);
+      });
+      const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.075, 0.08), glowMat);
+      mouth.position.set(0, -0.12, 0.38);
+      g.add(mouth);
+      // tiny legs for a scuttling look
+      const legMat = new THREE.MeshStandardMaterial({ color: 0xcc5c10, roughness: 0.6 });
+      for (let i = 0; i < 4; i++){
+        const a = (i / 4) * Math.PI * 2 + Math.PI/4;
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.22, 5), legMat);
+        leg.position.set(Math.cos(a) * 0.32, -0.28, Math.sin(a) * 0.32);
+        leg.rotation.z = Math.cos(a) * 0.5;
+        leg.rotation.x = Math.sin(a) * 0.5;
+        g.add(leg);
+      }
+    } else {
+      // Normal (non-Halloween) enemy: a spiky purple-blue blob, matching the
+      // game's regular color palette. Icosahedron core with cone spikes
+      // poking outward in every direction — a classic "wild creature" read
+      // that has nothing pumpkin-shaped about it, for whenever the event is off.
+      const spikyPurple = 0x8a5cff;
+      bodyMat = new THREE.MeshStandardMaterial({ color: spikyPurple, emissive: 0x6a3cff, emissiveIntensity: 0.25, roughness: 0.5 });
+      const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.27, 0), bodyMat);
+      core.castShadow = true;
+      g.add(core);
+      const spikeMat = new THREE.MeshStandardMaterial({ color: 0x5a3acc, roughness: 0.6 });
+      const spikeCount = 10;
+      for (let i = 0; i < spikeCount; i++){
+        // Spread across the whole sphere (not just around the equator) using
+        // a simple golden-angle distribution, so spikes poke out in every
+        // direction rather than forming a flat ring.
+        const t = i / spikeCount;
+        const inc = Math.acos(1 - 2 * t);
+        const az = Math.PI * (1 + Math.sqrt(5)) * i;
+        const dir = new THREE.Vector3(Math.sin(inc) * Math.cos(az), Math.cos(inc), Math.sin(inc) * Math.sin(az));
+        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.065, 0.24, 5), spikeMat);
+        spike.position.copy(dir).multiplyScalar(0.24);
+        spike.lookAt(dir.clone().multiplyScalar(2));
+        spike.rotateX(Math.PI / 2); // cones point along +Y by default; this aims them outward along dir instead
+        g.add(spike);
+      }
+      const glowMat = new THREE.MeshBasicMaterial({ color: 0xffe06a });
+      [-1, 1].forEach(side => {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), glowMat);
+        eye.position.set(side * 0.13, 0.06, 0.24);
+        g.add(eye);
+      });
+      const legMat = new THREE.MeshStandardMaterial({ color: 0x5a3acc, roughness: 0.6 });
+      for (let i = 0; i < 4; i++){
+        const a = (i / 4) * Math.PI * 2 + Math.PI/4;
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.22, 5), legMat);
+        leg.position.set(Math.cos(a) * 0.32, -0.28, Math.sin(a) * 0.32);
+        leg.rotation.z = Math.cos(a) * 0.5;
+        leg.rotation.x = Math.sin(a) * 0.5;
+        g.add(leg);
+      }
     }
     g.position.set(x, y, z);
     scene.add(g);
