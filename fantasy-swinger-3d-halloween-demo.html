@@ -3822,6 +3822,7 @@
   let globalEventRef = null;
   let friendBroadcastRef = null;
   let globalEffectsRef = null;
+  let halloweenForceRef = null;
   let lastHandledRingBroadcast = 0; // the ring is a one-time SPAWN action, not a continuous "forced until" state like the others — this tracks which broadcast was already acted on, so the same one doesn't re-trigger every time this listener fires
   let lastHandledGoldenKeycapsBroadcast = 0; // same one-time-action pattern as the ring above
   let lastHandledRainbowKeycapsBroadcast = 0;
@@ -3923,6 +3924,27 @@
       const body = Object.assign({ expiresAt: Date.now() + durationMs }, extra || {});
       globalEffectsRef.child(key).set(body).catch(() => {});
     }
+
+    // 🎃 Halloween version — global switch. Unlike the timed effects above
+    // (storm, chaos, golden hour), this one is persistent rather than
+    // "for N seconds", and every connected client — including the admin's
+    // own — reacts to it the exact same way: cache the new value locally,
+    // then reload. A full reload rather than a live in-place update because
+    // so much of what this flag controls (the moon, shop badges, the music
+    // track list, the emote wheel, night sky/lighting, the orange menu
+    // re-theme, pumpkin corner decorations, the Halloween-only admin
+    // buttons) is only ever checked once at startup throughout this file —
+    // trying to hot-swap every one of those live would be far more fragile
+    // than just reloading everyone onto the new state cleanly.
+    halloweenForceRef = firebase.database().ref('globalSettings/halloweenForce');
+    halloweenForceRef.on('value', snapshot => {
+      const data = snapshot.val();
+      const incoming = (data && typeof data.force === 'boolean') ? data.force : null;
+      const cachedLocally = storageGet('rankmann_halloweenAdminForce', null);
+      if (incoming === cachedLocally) return; // already in sync — also what stops this from reloading a second time right after WE'RE the one who just wrote this value
+      storageSet('rankmann_halloweenAdminForce', incoming);
+      location.reload();
+    }, () => {}); // offline/permission-denied — just keep using whatever was last cached locally (or the real date, if nothing was ever cached)
 
     // Boss event — everyone connected reacts the moment this flips on/off,
     // and the boss's HP itself lives here too (shared, synced) so every
@@ -11091,19 +11113,32 @@
   }
   updateHalloweenForceBtnLabel();
   document.getElementById('adminHalloweenForceBtn').addEventListener('click', () => {
-    // Simple flip to the opposite of whatever's currently showing — from
-    // then on this device always uses that forced value instead of the
-    // real date, until clicked again.
-    halloweenAdminForce = !halloweenEventActive;
-    storageSet('rankmann_halloweenAdminForce', halloweenAdminForce);
-    // Reloads automatically instead of just showing a "please reload"
-    // toast — too much of the game (moon, shop, music track list, emote
-    // wheel, night sky/lighting) only ever checks halloweenEventActive
-    // once at startup, so without an actual reload the toggle looked like
-    // it silently didn't work at all, which is exactly what caused
-    // confusion here.
-    showAdminToast('🎃 Halloween-Version ' + (halloweenAdminForce ? 'AN' : 'AUS') + ' — Seite lädt neu...');
-    setTimeout(() => location.reload(), 900);
+    // Flip to the opposite of whatever's currently showing. Written to
+    // Firebase rather than just local storage, so it reaches every
+    // connected player, not only this device — the halloweenForceRef
+    // listener set up above is what actually applies it (cache + reload),
+    // and fires for THIS client too once the write round-trips, so there's
+    // no separate reload call needed here; it'd otherwise race the one the
+    // listener is about to trigger anyway.
+    const newValue = !halloweenEventActive;
+    if (firebaseReady() && halloweenForceRef){
+      halloweenForceRef.set({ force: newValue, updatedAt: firebase.database.ServerValue.TIMESTAMP }).then(() => {
+        showAdminToast('🎃 Halloween-Version global ' + (newValue ? 'AN' : 'AUS') + ' — wird bei allen Spielern (und bei dir) übernommen, Seite lädt gleich neu...');
+      }).catch(() => {
+        // Couldn't reach Firebase to broadcast it — falls back to the old
+        // local-only behavior rather than doing nothing.
+        halloweenAdminForce = newValue;
+        storageSet('rankmann_halloweenAdminForce', newValue);
+        showAdminToast('⚠️ Konnte nicht global gesendet werden — nur lokal bei dir geändert. Seite lädt neu...');
+        setTimeout(() => location.reload(), 900);
+      });
+    } else {
+      // No connection at all — same local-only fallback.
+      halloweenAdminForce = newValue;
+      storageSet('rankmann_halloweenAdminForce', newValue);
+      showAdminToast('🎃 Halloween-Version ' + (newValue ? 'AN' : 'AUS') + ' (nur lokal, keine Verbindung) — Seite lädt neu...');
+      setTimeout(() => location.reload(), 900);
+    }
   });
   document.getElementById('adminAnnounceBtn').addEventListener('click', () => {
     const input = document.getElementById('adminAnnounceInput');
