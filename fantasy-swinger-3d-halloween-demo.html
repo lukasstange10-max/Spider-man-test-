@@ -4,6 +4,40 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>🎃 Rankmann — HALLOWEEN DEMO (nicht die Live-Version!)</title>
+<script>
+  // 🎃 Computes whether the Halloween event is active — as early as
+  // possible, before any of the always-on Halloween theming (orange menu
+  // colors, pumpkin corner decorations) further down gets a chance to run
+  // unconditionally regardless of the admin toggle. Deliberately a small,
+  // self-contained duplicate of the date-window + admin-override logic the
+  // main script uses much later (scopedStorageKey/storageGet don't exist
+  // yet this early) — both read the exact same localStorage keys with the
+  // same scoping formula, so they always agree; the main script's own
+  // halloweenEventActive is set to just read this same computed value
+  // rather than recomputing it, so there's only one real source of truth.
+  (function(){
+    function isHalloweenDateWindow(){
+      var now = new Date();
+      var month = now.getMonth();
+      var day = now.getDate();
+      return (month === 9 && day >= 20) || (month === 10 && day <= 2);
+    }
+    var profileId = 'default';
+    try {
+      var rawProfile = localStorage.getItem('rankmann_activeProfileId');
+      if (rawProfile) profileId = JSON.parse(rawProfile);
+    } catch(e){}
+    var forceKey = 'rankmann_profile_' + profileId + '_rankmann_halloweenAdminForce';
+    var force = null;
+    try {
+      var rawForce = localStorage.getItem(forceKey);
+      if (rawForce !== null) force = JSON.parse(rawForce);
+    } catch(e){}
+    var active = (force !== null) ? force : isHalloweenDateWindow();
+    window.__halloweenActive = active;
+    document.documentElement.classList.toggle('halloween-active', active);
+  })();
+</script>
 <style>
   html, body { margin: 0; padding: 0; overflow: hidden; background: #0a0518; font-family: 'Poppins', 'Segoe UI', Arial, sans-serif; }
   canvas { display: block; touch-action: none; }
@@ -1645,6 +1679,8 @@
     border-radius: 12px; color: #fff; cursor: pointer;
   }
   .adminActionBtn:hover { background: rgba(255,190,80,0.2); }
+  .hwOnlyAdminBtn { display: none; } /* Halloween-exclusive admin tools — hidden entirely while the event is off, shown once html gets the halloween-active class */
+  html.halloween-active .hwOnlyAdminBtn { display: inline-block; }
   #adminGlobalNote { font-size: 11.5px; color: rgba(255,255,255,0.55); text-align: left; margin: 6px 0 0; line-height: 1.5; }
   #adminGlobalWarning { font-size: 11px; color: rgba(255,190,80,0.8); text-align: left; margin: 6px 0 0; line-height: 1.5; }
   #adminGlobalStatus { font-size: 12.5px; margin-top: 10px; color: rgba(255,255,255,0.7); }
@@ -2256,8 +2292,12 @@
      — or risk breaking — any of the original rules above. Scoped to the
      menu/HUD chrome only; the 3D world itself keeps its own colors
      (that's what the separate color-grade overlay is for).
+     Every selector below is prefixed with html.halloween-active — that
+     class is set (or not) by the very first inline script in <head>,
+     before any of this can render, so none of this orange theming shows
+     at all while the admin toggle (or the real date) has the event off.
      ============================================================ */
-  #startBtn {
+  html.halloween-active #startBtn {
     background: linear-gradient(135deg, #ff8a1e, #ff3d1e) !important;
     box-shadow: 0 8px 26px rgba(255,120,20,0.55) !important;
   }
@@ -2265,11 +2305,11 @@
     0%, 100% { box-shadow: 0 6px 20px rgba(255,120,20,0.5); }
     50%      { box-shadow: 0 6px 32px rgba(255,60,180,0.55); }
   }
-  .menuBtn {
+  html.halloween-active .menuBtn {
     background: linear-gradient(135deg, rgba(255,140,20,0.28), rgba(255,60,20,0.22)) !important;
     border-color: rgba(255,160,60,0.5) !important;
   }
-  .menuBtn:hover {
+  html.halloween-active .menuBtn:hover {
     background: linear-gradient(135deg, rgba(255,140,20,0.5), rgba(255,60,20,0.4)) !important;
   }
   /* The secondary row of round menu buttons (Shop/Erfolge/Galerie/Statistiken/
@@ -2277,36 +2317,35 @@
      each is styled individually by its own #id with its own accent color,
      so they need to be listed out explicitly here to actually all turn
      orange together instead of keeping their original blue/green/purple. */
-  #shopBtn, #pauseShopBtn, #achievementsBtn, #galleryBtn, #statsBtn, #coopBtn, #friendsBtn, #adminPanelBtn {
+  html.halloween-active #shopBtn, html.halloween-active #pauseShopBtn, html.halloween-active #achievementsBtn, html.halloween-active #galleryBtn, html.halloween-active #statsBtn, html.halloween-active #coopBtn, html.halloween-active #friendsBtn, html.halloween-active #adminPanelBtn {
     background: linear-gradient(135deg, rgba(255,140,20,0.28), rgba(255,60,20,0.22)) !important;
     border-color: rgba(255,160,60,0.5) !important;
     color: #fff !important;
   }
-  #shopBtn:hover, #pauseShopBtn:hover, #achievementsBtn:hover, #galleryBtn:hover, #statsBtn:hover, #coopBtn:hover, #friendsBtn:hover, #adminPanelBtn:hover {
+  html.halloween-active #shopBtn:hover, html.halloween-active #pauseShopBtn:hover, html.halloween-active #achievementsBtn:hover, html.halloween-active #galleryBtn:hover, html.halloween-active #statsBtn:hover, html.halloween-active #coopBtn:hover, html.halloween-active #friendsBtn:hover, html.halloween-active #adminPanelBtn:hover {
     background: linear-gradient(135deg, rgba(255,140,20,0.5), rgba(255,60,20,0.4)) !important;
   }
-  #startScreen h1, #profileScreen h1, #galleryScreen h1, #shopScreen h1, #achievementsScreen h1 {
+  html.halloween-active #startScreen h1, html.halloween-active #profileScreen h1, html.halloween-active #galleryScreen h1, html.halloween-active #shopScreen h1, html.halloween-active #achievementsScreen h1 {
     background: linear-gradient(135deg, #ffcf5c, #ff8a1e, #ff3d6e) !important;
     -webkit-background-clip: text !important; background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
   }
-  #activeProfileBadge:hover { background: rgba(255,140,20,0.15) !important; border-color: rgba(255,160,60,0.6) !important; }
-  #worldSelectBadge, .galleryTabBtn.active, #worldSelectBox .worldBtn.selected {
+  html.halloween-active #activeProfileBadge:hover { background: rgba(255,140,20,0.15) !important; border-color: rgba(255,160,60,0.6) !important; }
+  html.halloween-active #worldSelectBadge, html.halloween-active .galleryTabBtn.active, html.halloween-active #worldSelectBox .worldBtn.selected {
     background: linear-gradient(135deg, rgba(255,140,20,0.35), rgba(255,60,20,0.35)) !important;
     border-color: rgba(255,160,60,0.7) !important;
   }
-  #musicUnlockHint span {
+  html.halloween-active #musicUnlockHint span {
     background: linear-gradient(135deg, rgba(255,140,20,0.3), rgba(255,60,20,0.15)) !important;
     border-color: rgba(255,160,60,0.8) !important;
     box-shadow: 0 15px 50px rgba(0,0,0,0.55), 0 0 45px rgba(255,120,20,0.45) !important;
   }
-  .stat-box, .startPanel #activeProfileBadge, #worldSelectBox { border-color: rgba(255,160,60,0.25) !important; }
-  #totalTrophyLine, .heroTagline { color: rgba(255,200,150,0.85) !important; }
+  html.halloween-active .stat-box, html.halloween-active .startPanel #activeProfileBadge, html.halloween-active #worldSelectBox { border-color: rgba(255,160,60,0.25) !important; }
+  html.halloween-active #totalTrophyLine, html.halloween-active .heroTagline { color: rgba(255,200,150,0.85) !important; }
 </style>
 </head>
 <body>
 
-<div id="halloweenDemoWatermark" style="position:fixed; top:0; left:0; right:0; z-index:99999; text-align:center; padding:5px 8px; font:800 12px/1.3 -apple-system,sans-serif; background:linear-gradient(90deg,#ff8c1a,#7a2ff0,#ff8c1a); color:#1a0a00; text-shadow:0 1px 0 rgba(255,255,255,0.3); pointer-events:none; letter-spacing:0.5px;">🎃 HALLOWEEN-DEMO-BUILD — NUR ZUM AUSPROBIEREN, NICHT DIE LIVE-VERSION 🎃</div>
 <script>
   // 🎃 Adds a swaying pumpkin to each corner of every start-screen panel.
   // Done here (once, right after the panels exist in the HTML) rather than
@@ -2314,6 +2353,7 @@
   // — including the ones that only exist inside collapsed/hidden sub-panels
   // like the profile picker — without missing any or duplicating markup.
   function addHalloweenPumpkinCorners(){
+    if (!window.__halloweenActive) return; // set by the very first inline script in <head> — skip entirely while the event is off
     document.querySelectorAll('.startPanel').forEach(panel => {
       if (panel.dataset.hwPumpkinsAdded) return; // don't double up if this ever runs twice
       panel.dataset.hwPumpkinsAdded = '1';
@@ -2327,8 +2367,6 @@
   }
   document.addEventListener('DOMContentLoaded', addHalloweenPumpkinCorners);
 </script>
-<div id="halloweenColorGradeOverlay" style="position:fixed; inset:0; z-index:40; pointer-events:none; opacity:0; transition:opacity 0.6s ease; background:radial-gradient(circle at 50% 60%, rgba(255,140,20,0.08) 0%, rgba(30,5,40,0.35) 75%, rgba(10,2,15,0.55) 100%); mix-blend-mode:multiply;"></div>
-<div id="halloweenColorGradeOverlay2" style="position:fixed; inset:0; z-index:41; pointer-events:none; opacity:0; transition:opacity 0.6s ease; background:linear-gradient(180deg, rgba(255,110,20,0.10), rgba(120,30,200,0.14)); mix-blend-mode:overlay;"></div>
 
 <script>
   // Blocks the browser's own "double-tap to zoom" gesture, globally, across
@@ -2595,14 +2633,14 @@
   <div id="bigUpdateScreen" class="hidden">
     <div class="startPanel" style="max-width:480px; position:relative; overflow:visible;">
       <div id="bigUpdateConfetti"></div>
-      <div style="font-size:56px; margin-bottom:6px;">🌊</div>
-      <h1 style="font-size:26px; margin:0 0 6px; background:linear-gradient(135deg,#ffe27a,#ff9d6c,#9d7bff); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;">Welt 4 ist da!</h1>
-      <p class="heroTagline" style="margin-bottom:18px;">So viel Neues ist gerade dazugekommen:</p>
+      <div style="font-size:56px; margin-bottom:6px;">🎃</div>
+      <h1 style="font-size:26px; margin:0 0 6px; background:linear-gradient(135deg,#ff8c1a,#ff5c8a,#9d7bff); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;">Halloween ist da!</h1>
+      <p class="heroTagline" style="margin-bottom:18px;">So viel Gruseliges ist gerade dazugekommen:</p>
       <div style="text-align:left; display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
-        <div class="changelogEntry" style="padding:12px 16px;">🌊 <strong>Neue Welt 4 "Ozeanreich"</strong> — komplett unter Wasser, mit echter Schwimm-Mechanik statt Springen</div>
-        <div class="changelogEntry" style="padding:12px 16px;">🫧 <strong>Sauerstoff-System</strong> — Luft geht beim Schwimmen aus, auf Plattformen füllt sie sich wieder auf</div>
-        <div class="changelogEntry" style="padding:12px 16px;">✨ <strong>Golden &amp; 🌈 Regenbogen-Keycaps</strong> — seltene, zeitlich begrenzte Events mit satten Pokal-Belohnungen</div>
-        <div class="changelogEntry" style="padding:12px 16px;">🏃 <strong>Schnelleres Lauftempo</strong> — spürbar flüssigere Grundgeschwindigkeit und Sprint</div>
+        <div class="changelogEntry" style="padding:12px 16px;">🎃 <strong>Kürbis-König</strong> — neuer Boss-Gegner mit eigener dunkler Arena</div>
+        <div class="changelogEntry" style="padding:12px 16px;">🌕 <strong>Dunkle Mondnacht</strong> — die ganze Welt hat jetzt eine gruselige Nachtstimmung, mit großem Mond am Himmel</div>
+        <div class="changelogEntry" style="padding:12px 16px;">🧹 <strong>Besen-Flug</strong> — seltenes Power-up für kurzes, freies Fliegen statt Ranken-Schwingen</div>
+        <div class="changelogEntry" style="padding:12px 16px;">👻 <strong>Phantom-Sichtung</strong> — ultra-seltene Geisterbegegnung mit eigener Stimme, in 5 Sprachen</div>
       </div>
       <button id="bigUpdateSeeAllBtn" class="menuBtn" style="margin-bottom:10px;">📋 Alle Updates ansehen</button>
       <button id="bigUpdateCloseBtn" class="menuBtn" style="background:linear-gradient(135deg, rgba(122,255,196,0.3), rgba(60,200,150,0.3)); border-color:rgba(122,255,196,0.6);">Los geht's! 🚀</button>
@@ -2744,6 +2782,22 @@
             <li>🐠 Lebendiges Riff — schwimmende Fischschwärme, wogender Seetang, bunte Korallen-Cluster</li>
             <li>🗺️ 9 eigene Pokal-Checkpoints, weiter auseinander als in den anderen Welten — passend zum freien Schwimmen</li>
             <li>🌤️ Kein Regen oder Sturm unter Wasser, dafür eigene gedämpfte Unterwasser-Klangkulisse</li>
+          </ul>
+        </div>
+
+        <div class="changelogEntry">
+          <div class="changelogDate">Halloween-Update</div>
+          <h3>🎃 Halloween kommt nach Rankmann</h3>
+          <ul>
+            <li>🎃 <strong>Kürbis-König</strong> — neuer Boss-Gegner mit eigener Arena, teleportiert statt zu laufen, wirft Kürbis-Bomben und verhängt Nebel-Flüche</li>
+            <li>🌕 <strong>Dunkle Mondnacht</strong> — eigene Himmel- und Lichtstimmung für die ganze Event-Zeit, mit großem, leuchtendem Mond</li>
+            <li>🎃 &amp; 👻 <strong>Kürbis- und Geister-Keycaps</strong> — zwei neue Event-Typen neben Golden/Regenbogen</li>
+            <li>🧹 <strong>Besen-Flug</strong> — seltenes Power-up für 20 Sekunden freies Fliegen statt Ranken-Schwingen, mit eigener Reitpose</li>
+            <li>👻 <strong>Phantom-Sichtung</strong> — ultra-seltene Geisterbegegnung, spricht einen von 8 Sprüchen mit eigener Stimme, in 5 Sprachen</li>
+            <li>🎵 Exklusiver Halloween-Musiktrack im Musik-Player</li>
+            <li>👻 Neues "Erschrecken"-Emote — löst bei nahen Freunden im Koop einen Bildschirm-Jump-Scare aus</li>
+            <li>🎃 5 Halloween-exklusive Skins im Shop, plus komplett orange eingefärbtes Menü-Design</li>
+            <li>📅 Läuft automatisch vom 20. Oktober bis 2. November — danach schaltet alles ohne Zutun wieder zurück</li>
           </ul>
         </div>
 
@@ -3382,17 +3436,13 @@
         <button class="adminActionBtn" id="adminTriggerChaosBtn">🎪 Chaos-Modus auslösen (18s)</button>
         <button class="adminActionBtn" id="adminTriggerGoldenHourBtn">✨ Goldene Stunde testen (2min)</button>
         <button class="adminActionBtn" id="adminTriggerRingBtn">🎯 Bonus-Ring auslösen</button>
-        <button class="adminActionBtn" id="adminTriggerBroomBtn">🧹 Besen auslösen</button>
-        <button class="adminActionBtn" id="adminTriggerScareBtn">📢 Jump-Scare testen</button>
         <button class="adminActionBtn" id="adminTriggerBossBtn">👹 Boss-Gegner auslösen</button>
-        <button class="adminActionBtn" id="adminTriggerBossOfflineBtn">🎃 Boss offline testen (nur du, kein Internet nötig)</button>
-        <button class="adminActionBtn" id="adminTriggerPhantomBtn">👻 Phantom-Sichtung testen</button>
         <button class="adminActionBtn" id="adminTriggerIceAgeBtn">🧊 Eiszeit auslösen (3min)</button>
         <button class="adminActionBtn" id="adminGoldenKeycapsBtn">✨ Golden Keycaps</button>
         <button class="adminActionBtn" id="adminRainbowKeycapsBtn">🌈 Regenbogen Keycaps</button>
-        <button class="adminActionBtn" id="adminPumpkinKeycapsBtn">🎃 Kürbis Keycaps</button>
-        <button class="adminActionBtn" id="adminGhostKeycapsBtn">👻 Geister Keycap</button>
-        <button class="adminActionBtn" id="adminHalloweenPreviewBtn">🎃 Halloween-Vorschau an/aus</button>
+        <button class="adminActionBtn hwOnlyAdminBtn" id="adminPumpkinKeycapsBtn">🎃 Kürbis Keycaps</button>
+        <button class="adminActionBtn hwOnlyAdminBtn" id="adminGhostKeycapsBtn">👻 Geister Keycap</button>
+        <button class="adminActionBtn" id="adminHalloweenForceBtn">🎃 Halloween-Version: AN</button>
       </div>
       <div class="settingsToggleRow" style="margin-top:12px;">
         <span>🛡️ God Mode (unverwundbar)</span>
@@ -5760,7 +5810,25 @@
   // Declared this early (same reasoning as keyboardKeysWanted above) because
   // updateShopUI() can get called from elsewhere in startup before a `let`
   // declared right next to that function would actually have run yet.
-  let halloweenEventActive = true;
+  //
+  // Tied to the real calendar date by default: active Oct 20 – Nov 2
+  // (inclusive), using whatever date/time the player's own device reports.
+  // An admin can override this window either direction — persisted, so it
+  // survives a page reload — via the "🎃 Halloween-Version: AN/AUS" button
+  // in the Admin-Zentrale. window.__halloweenActive was already computed
+  // from the exact same logic by the very first inline script in <head>
+  // (which also needs it — for the orange menu re-theme and the pumpkin
+  // corner decorations, both of which render before this script even
+  // starts) — reused here rather than recomputed, so there's only one
+  // actual source of truth and no risk of the two ever disagreeing.
+  function isHalloweenDateWindow(){
+    const now = new Date();
+    const month = now.getMonth(); // 0-indexed: 9 = October, 10 = November
+    const day = now.getDate();
+    return (month === 9 && day >= 20) || (month === 10 && day <= 2);
+  }
+  let halloweenAdminForce = storageGet('rankmann_halloweenAdminForce', null); // null = automatic (date-based), true/false = admin override
+  let halloweenEventActive = window.__halloweenActive;
   moonMesh.visible = halloweenEventActive; // set here rather than at moon creation — this flag isn't declared yet at that point in the file
   moonGlow.visible = halloweenEventActive;
   function updateShopHalloweenBadgeVisibility(){
@@ -10967,21 +11035,6 @@
     if (firebaseReady()) globalEffectsRef.child('specialRing').set({ world, posIndex, broadcastAt, expiresAt: Date.now() + SPECIAL_RING_LIFETIME * 1000 }).catch(() => {});
     showAdminToast('🎯 Bonus-Ring global ausgelöst — Welt ' + specialRing.world);
   });
-  document.getElementById('adminTriggerBroomBtn').addEventListener('click', () => {
-    // Local-only test button, same reasoning as the boss offline test —
-    // just for previewing the broom yourself, no Firebase sync needed.
-    if (!running){ showAdminToast('⚠️ Erst ein Spiel starten, dann testen'); return; }
-    removeBroomPickup();
-    activateBroomFlight();
-    showAdminToast('🧹 Besen-Flug direkt aktiviert — nur lokal bei dir');
-  });
-  document.getElementById('adminTriggerScareBtn').addEventListener('click', () => {
-    // Bypasses the whole "needs a nearby friend doing the boo emote"
-    // requirement — for solo previewing of the overlay/sound only.
-    if (!running){ showAdminToast('⚠️ Erst ein Spiel starten, dann testen'); return; }
-    triggerJumpScare();
-    showAdminToast('📢 Jump-Scare ausgelöst — nur lokal bei dir');
-  });
   function updateBossTriggerBtnLabel(){
     const btn = document.getElementById('adminTriggerBossBtn');
     if (btn) btn.textContent = halloweenEventActive ? '🎃 Kürbis-König auslösen' : '👹 Boss-Gegner auslösen';
@@ -10991,27 +11044,6 @@
     if (!firebaseReady()){ showAdminToast('⚠️ Keine Verbindung — Boss-Event kann nicht gestartet werden'); return; }
     startBossEvent();
     showAdminToast(halloweenEventActive ? '🎃 Kürbis-König ausgelöst — alle Spieler werden in die Arena geholt' : '👹 Boss-Gegner ausgelöst — alle Spieler werden in die Arena geholt');
-  });
-  document.getElementById('adminTriggerBossOfflineBtn').addEventListener('click', () => {
-    // 🎃 No firebaseReady() check at all here on purpose — this is exactly
-    // the point of the button: previewing the fight without needing the
-    // file hosted somewhere with a working Firebase connection. Only YOU
-    // see this fight; nothing gets written anywhere for other players.
-    bossOfflineTestMode = true;
-    bossEventActive = true;
-    bossHp = BOSS_MAX_HP;
-    enterBossArena();
-    showAdminToast((halloweenEventActive ? '🎃 Kürbis-König' : '👹 Boss') + ' offline gestartet — nur lokal bei dir, kein Internet nötig');
-  });
-  document.getElementById('adminTriggerPhantomBtn').addEventListener('click', () => {
-    // Forces an immediate sighting for testing — the real spawn logic
-    // (tryPhantomSpawnCheck) never calls this directly at anywhere near
-    // this frequency; this button bypasses the rarity roll entirely.
-    if (!running){ showAdminToast('⚠️ Erst ein Spiel starten, dann testen'); return; }
-    phantomState.active = false; // clears any in-progress sighting first, so this always produces a fresh one immediately
-    document.getElementById('phantomCaption').classList.remove('show');
-    spawnPhantom();
-    showAdminToast('👻 Phantom-Sichtung ausgelöst — nur lokal bei dir sichtbar');
   });
   document.getElementById('adminTriggerIceAgeBtn').addEventListener('click', () => {
     iceAgeForceUntil = Date.now() + 3 * 60000;
@@ -11047,13 +11079,31 @@
     globalEffectsRef.child('ghostKeycaps').set({ indices, broadcastAt: Date.now(), expiresAt }).catch(() => {});
     showAdminToast('👻 Geister Keycap global ausgelöst — nur ' + GHOST_KEYCAP_COUNT_PER_WORLD + ' pro Welt, größte Belohnung, 5 Minuten Zeit');
   });
-  // ---------- 🎃 HALLOWEEN DEMO PREVIEW (local-only, not synced/global — this whole file is just for trying ideas out) ----------
-  let halloweenPreviewActive = false;
-  document.getElementById('adminHalloweenPreviewBtn').addEventListener('click', () => {
-    halloweenPreviewActive = !halloweenPreviewActive;
-    document.getElementById('halloweenColorGradeOverlay').style.opacity = halloweenPreviewActive ? '1' : '0';
-    document.getElementById('halloweenColorGradeOverlay2').style.opacity = halloweenPreviewActive ? '1' : '0';
-    showAdminToast(halloweenPreviewActive ? '🎃 Halloween-Vorschau AN — nur lokal bei dir, nur zum Anschauen' : '🎃 Halloween-Vorschau AUS');
+  // ---------- 🎃 HALLOWEEN VERSION TOGGLE (local-only, not synced/global — this whole file is just for trying ideas out) ----------
+  // A plain two-state on/off switch, showing and controlling the CURRENT
+  // effective state (whatever the date-based default currently is, until
+  // the admin overrides it) — not a three-way "automatic/forced-on/forced-
+  // off" cycle, which was more flexible but confusing to actually use.
+  function updateHalloweenForceBtnLabel(){
+    const btn = document.getElementById('adminHalloweenForceBtn');
+    if (!btn) return;
+    btn.textContent = '🎃 Halloween-Version: ' + (halloweenEventActive ? 'AN' : 'AUS');
+  }
+  updateHalloweenForceBtnLabel();
+  document.getElementById('adminHalloweenForceBtn').addEventListener('click', () => {
+    // Simple flip to the opposite of whatever's currently showing — from
+    // then on this device always uses that forced value instead of the
+    // real date, until clicked again.
+    halloweenAdminForce = !halloweenEventActive;
+    storageSet('rankmann_halloweenAdminForce', halloweenAdminForce);
+    // Reloads automatically instead of just showing a "please reload"
+    // toast — too much of the game (moon, shop, music track list, emote
+    // wheel, night sky/lighting) only ever checks halloweenEventActive
+    // once at startup, so without an actual reload the toggle looked like
+    // it silently didn't work at all, which is exactly what caused
+    // confusion here.
+    showAdminToast('🎃 Halloween-Version ' + (halloweenAdminForce ? 'AN' : 'AUS') + ' — Seite lädt neu...');
+    setTimeout(() => location.reload(), 900);
   });
   document.getElementById('adminAnnounceBtn').addEventListener('click', () => {
     const input = document.getElementById('adminAnnounceInput');
@@ -13812,8 +13862,14 @@
   // through the full changelog to find out anything changed at all.
   // The daily-reward popup (if there is one to show today) waits until
   // AFTER this closes, so a brand-new session never stacks two popups.
-  const BIG_UPDATE_VERSION = 'ocean1';
-  if (storageGet('rankmann_seenBigUpdate', null) !== BIG_UPDATE_VERSION){
+  const BIG_UPDATE_VERSION = 'halloween1';
+  // Only ever shown while the event is actually active — announcing
+  // Halloween content on a random day in June would just be confusing,
+  // since none of it would be visible in-game to match. Deliberately does
+  // NOT mark it as "seen" when skipped for this reason, so it still greets
+  // everyone once Oct 20 actually arrives, rather than being silently
+  // missed by anyone who happened to open the game before then.
+  if (halloweenEventActive && storageGet('rankmann_seenBigUpdate', null) !== BIG_UPDATE_VERSION){
     document.getElementById('bigUpdateScreen').classList.remove('hidden');
     spawnConfetti('bigUpdateConfetti', 40);
   } else {
